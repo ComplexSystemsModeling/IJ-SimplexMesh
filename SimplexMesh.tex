@@ -191,9 +191,8 @@ Simplex meshes are dual of triangulations. Thus, their connectivity functions N(
 \end{figure}
 %------------------------------------------------------------------------
 \subsection{Delaunay - Voronoi Duality}
-The Delaunay triangulation of a point set is a collection of edges satisfying an "empty circle" property: for each edge we can find a circle containing the edge's endpoints but not containing any other points. Delaunay triangulations maximize the minimum angle of all the angles of the triangles in the triangulation. Voronoi diagram is the partition of $\mathbb{R}^3$ into $n$ polyhedral regions. Each region $P$ has a set of points in $\mathbb{R}^3$ which are closer to $P$ than to any other region.
-
-The Delaunay triangulation is the dual structure of the Voronoi diagram in  $\mathbb{R}^3$. By dual, we mean to draw a line segment between two Voronoi vertices if their Voronoi polygons have a common edge, or in more mathematical terminology: there is a natural bijection between the two which reverses the face inclusions. The duality between Delaunay triangulations and Voronoi diagram is geometric because it depends on the position of its vertices.
+Taking a set of point $\mathcal{P}$ in $\mathbb{R}^3$, the Delaunay triangulation of $\mathcal{P}$ is a specific triangulation of $\mathcal{P}$ that respects the Delaunay criterion stating that no point of $\mathcal{P}$ should be inside of the circumference circle of any triangle of the triangulation of $\mathcal{P}$. Taking a set of point $\mathcal{P}$ in $\mathbb{R}^3$, the Voronoi diagram (or tesselation) is the partition of $\mathbb{R}^3$  into $n$ polyhedral regions such as each region $T$ has a set of points in $\mathbb{R}^3$ which are closer to $T$ than to any other region.\\
+The Voronoi diagram is the dual of the Delaunay triangulation, and the Delaunay triangulation is the dual structure of the Voronoi diagram. By dual, we mean to draw a line segment between two Voronoi vertices if their Voronoi polygons have a common edge, or in more mathematical terminology: there is a natural bijection between the two which reverses the face inclusions. The duality between Delaunay triangulations and Voronoi diagram is geometric because it depends on the position of its vertices.
 %----------------- Section 3: Implement Duality in iTK--------------------
 \section{Implement Duality in ITK}
 %-------------------------------------------------------------------------
@@ -280,24 +279,42 @@ In order to transform primal mesh into dual mesh, we also create a new filter ca
 We also implement a new adaptor for showing dual mesh.
 %-----------------------------------------------------------------------
 \subsubsection{Dual point functor}
-Stephane part.
-% NOTE STEPH
-% Explain the functor system for the different dual point wanted
-% - Barycentre
-% - Circumcenter
+As explained before, there is no geometrical duality between the primal and the dual. Therefore any formula that compute points that satisfy the criteria of duality detailed in section 2.1 can be use. In order not to have a single option that may limits the application of the filter, a functor is used to compute the dual point. Depending on the case faced, the user is able to choose from the already two existing dual point functor, or use his own functor. Except from the classic ITK macro, typedef definition and constructor/destructor, the functor has only one method where the process is done.
+\begin{verbatim}
+template< class TInputMesh, class TOutputMesh=TInputMesh>
+class DualPointFunctor
+{
+typedef typename TInputMesh::CellsContainer    CellsContainer;
+typedef typename CellsContainer::ConstIterator CellIterator;
+...
+inline OutputPointType 
+operator() ( const TInputMesh* primalMesh, CellIterator cellIterator ) 
+  {...}
+};
+\end{verbatim}
+\paragraph{\textbf{Barycentre}}
+In general cases, the barycentre of each face of the mesh is used for the dual point. It has the advantage to be costless to calculate, to always be located inside its corresponding face and to work with any type of mesh. The following equation is used to compute the centre
+\begin{equation}
+\label{eq5}
+M~=~\frac{P_1~+~P_2~+~\mathnormal{...}~+~P_n}{n}
+\end{equation}
+where $P_1,~P_2, ...,~P_n$ are the points retrieve from the current cell.
+
+\paragraph{\textbf{Circumcentre}}
+The circumcentre is a particular dual point of triangle mesh. It is the centre of the circumcircle of a triangle and is determine by the crossing point of the perpendicular bisectors, is not always include in its primal cell face, and more costly to compute. The interest of this dual point is in the case of the Delaunay triangulation in order to obtain its dual, the corresponding Voronoi tesselation. The following equation is used to compute the centre.
+\begin{equation}
+\label{eq6}
+M~=~P_1~+~\frac{|P_3-P_1|^2~[(P_2-P_1)\times(P_3-P_1)]\times(P_2-P_1)~+~|P_2-P_1|^2~[(P_3-P_1)\times(P_2-P_1)]\times(P_3-P_1)}{2~|(P_2-P_1)\times(P_3-P_1)|^2}
+\end{equation}
+Like for the barycentre, the points $P_1,~P_2,~P_3$ are retrieved from the current triangle. In order to simplify the calculus and avoid the use of square roots the edge length are squared and the coordinates of all the point relative to the first point $P_1$ are used. Due to the floating-point errors such solution may be unstable in the case of the denominator is close to $0$. To prevent such case, the exact geometric predicate implemented for ITK \cite{Moreau2011} is use for the cross product calculation.
 %-----------------------------------------------------------------------
 \subsubsection{Dual borders calculation}
-Stephane part.
-% NOTE STEPH
-% Different way to calculate the dual borders
-% - not borders
-% - point from dual edge
-% - extended borders
+As shown in figure \ref{} the dual of a primal mesh that contain a border is not a closed mesh. The dual point obtain from the border are not included into a face. This representation may be problematic to some other process which may discard single edges and points (\emph{e.i.} writing the dual mesh, see figure \ref{}). An option is the border dual point in order to close the dual mesh, but this solution may lead to some visual errors. A boolean, set using the \emph{SetBorders()} methods, allow the user to decide if the filter compute the dual borders or not.
 %-----------------------------------------------------------------------
 \section{Validation}
 %-----------------------------------------------------------------------
 \subsection{Test on planer triangular to simplex mesh with and without holes}
-We create a square triangulated (primal) mesh as shown in figure~\ref{fig:subfiga}. Green color represents primal points and cells. From this primal mesh, we would try to generate dual mesh. First, we generate dual points which are in fact the barycentre of primal cells as shown in figure~\ref{fig:subfigc} with red points. We add these dual points in mDualPointsContainer of itk::QuadEdgeMeshWithDual by using AddDualPoint(). Second, we iterate around each primal point to form dual cells and add dual cell in mDualCellsContainer of itk::QuadEdgeMeshWithDual by using AddDualFace(). By doing this we generate all dual cells except boundary cells. Dual cell are represented by red color in figure~\ref{fig:subfigc}.\\
+We create a square triangulated (primal) mesh as shown in figure~\ref{fig:subfiga}. Green color represents primal points and cells. From this primal mesh, we would try to generate dual mesh. First, we generate dual points using the BarycentreDualPointFunctor on the primal cells as shown in figure~\ref{fig:subfigc} with red points. We add these dual points in mDualPointsContainer of itk::QuadEdgeMeshWithDual by using AddDualPoint(). Second, we iterate around each primal point to form dual cells and add dual cell in mDualCellsContainer of itk::QuadEdgeMeshWithDual by using AddDualFace(). By doing this we generate all dual cells except boundary cells. Dual cell are represented by red color in figure~\ref{fig:subfigc}.\\
 In order to tackle borders, first we get boundary edges of primal mesh. Select one boundary edge from list; create a new point (dual) in the middle of edge and add in mDualPointsContainer of itk::QuadEdgeMeshWithDual by using AddDualPoint(...).  
 In figure~\ref{fig:subfige}, red points on border lines represent boundary points of dual mesh. Then, find the dual point associated with the face on the left and make an edge between these two dual points. Now iterate along left triangle to form dual cell and add this dual cell into mDualCellsContainer of itk::QuadEdgeMeshWithDual by using AddDualFace(). In figure~\ref{fig:subfige}, red cells represent dual cells. The final dual mesh generated from primal mesh is shown in following figure~\ref{fig:subfigf}. 
 \begin{figure}
@@ -340,9 +357,8 @@ For testing this data structure and filter, we deleted one primal edge and re-ru
 \label{fig:primal2DualMeshwithhole}
 \end{figure}
 %-------------------------------------------------------------------------
-\subsection{Test with delaunay to voronoi}
-% Test with delaunay => voronoi (plus citation to insight journal paper)
-We also tested this data structure on delaunay mesh to voronoi mesh. We input a planer delaunay mesh into new data structure as shown in figure~\ref{fig:Delauny_A} and generate voronoi mesh by using QuadEdgeMeshToQuadEdgeMeshWithDualFilter as shown in figure~\ref{fig:Delauny_B}. Later, the voronoi mesh is shown in figure~\ref{fig:Delauny_C} using new adaptor $itk::QuadEdgeMeshWithDualAdaptor$. \\
+\subsection{Test with Delaunay to Voronoi}
+Using the PointSetToDelaunayTriangulationFilter \cite{Rigaud2012b}, we tested this data structure on Delaunay mesh to Voronoi diagram. We input a planer Delaunay mesh into new data structure as shown in figure~\ref{fig:Delauny_A} and generate the corresponding Voronoi diagram by using QuadEdgeMeshToQuadEdgeMeshWithDualFilter and the CircumcentreDualPointFunctor as shown in figure~\ref{fig:Delauny_B}. Later, the Voronoi diagram is shown in figure~\ref{fig:Delauny_C} using new adaptor $itk::QuadEdgeMeshWithDualAdaptor$.\\
 \begin{figure}[!b]
 	\centering
 	\subfigure[Delaunay Mesh] {
