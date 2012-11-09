@@ -82,6 +82,9 @@ This document describes an implementation in ITK of an extension of ITK (QE) to 
 %----------------- Section 1:Surfaces ----------------------------------
 \section{Surfaces}
 \subsection{Notion of deformable surfaces}
+
+%---- Todo -- Remove deformable surfaces
+%-----Todo -- add genus general formual and define components, border cells
 A deformable surface can be characterized by vector of shape parameters $q = ( q_1, ... , q_{n_q})^T$ and vector of deformation parameters $q = ( d_1, ... , d_{n_d})^T$ that controls the application of a global transformation $T_d$ 
 on the surface:
 \begin{equation}
@@ -248,6 +251,8 @@ We create a new class $itk::QuadEdgeMeshWithDual$ derived from $itk::QuadEdgeMes
 Furthermore, this class contains three new containers; $DualPointsContainer$ for dual points, $DualCellsContainer$ for dual cells and $DualEdgeCellsContainer$ for boundary edges and three new functions; $AddDualPoint$ for adding dual point, $AddDualFace$ for dual cells (polygon) and $AddDualEdge$ for boundary edges. 
 
 In order to keep the primal-dual references in a single data structure, we have two design options. In first design, we use to maintain two look up tables; one table for storing references of primal cell to dual point and and second table for primal point to dual cell. The advantage of this approach is backward compatibility of code and test cases. The bad side of this design is to maintain these tables that having the complexity n log(n) causing severe degradation of performance in case of large mesh. In second design, we modify the existing data structure by adding two reference pair; primal point to dual cell and primal cell to dual point as shown below. With this design, no look up table is required to maintain the primal and dual references. So it is very efficient approach but not compatible with respect to previous code and test cases. 
+
+%--- Todo -- illustrate both old and new code for origin ref type
 $typedef \ GeometricalQuadEdge< \\
     std::pair<PointIdentifier, CellIdentifier>, \\
     std::pair<CellIdentifier,  PointIdentifier>, \\
@@ -421,7 +426,7 @@ An example SimplexMesh.cxx is provided with the sources and is used for the test
   $writer->SetInput( adaptor );$\\
   $writer->SetFileName( "TestSquareTriangularSimplexMesh.vtk" );$\\
   $writer->Write();$\\
- 
+ %--- Todo -- add future work -- multiresolution, simplex eulor op, subdivision, deformable surface
 \bibliographystyle{plain}
 \bibliography{InsightJournal}
 
