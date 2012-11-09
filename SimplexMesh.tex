@@ -14,6 +14,8 @@ colorlinks,linkcolor={blue},citecolor={blue},urlcolor={blue},
 \usepackage{subfigure}
 \usepackage{amssymb,amsmath}
 
+\usepackage{multirow}
+
 
 %  This is a template for Papers to the Insight Journal. 
 %  It is comparable to a technical report format.
@@ -75,7 +77,7 @@ $^{2}$Singapore Immunology Network, Agency for Science, Technology and Research 
 % scope of the document.
 \begin{abstract}
 \noindent
-This document describes an implementation in ITK of an extension of ITK (QE) to handle primal and dual mesh in one container and a filter that allow to calculate primal/dual mesh from the primal mesh. This new data structure, itk::QuadEdgeMeshWithDual, is an extension of the already existing itk::QuadEdgeMesh~\cite{Gouaillard2006}, with all the same properties, with the dual mesh in additional. With the new data structure, we compute a primal/dual mesh from primal mesh that share common topology but different sampling. This paper is accompanied with the source code and examples that should provide enough details for users.
+This document describes an implementation in ITK of an extension of ITK (QE) to handle primal and dual mesh in one container and a filter that allow to calculate primal/dual mesh from the primal mesh. This new data structure, \emph{itk::QuadEdgeMeshWithDual}, is an extension of the already existing \emph{itk::QuadEdgeMesh}~\cite{Gouaillard2006}, with all the same properties, with the dual mesh in additional. With the new data structure, we compute a primal/dual mesh from primal mesh that share common topology but different sampling. This paper is accompanied with the source code and examples that should provide enough details for users.
 \end{abstract}
 \IJhandlenote{\IJhandlerIDnumber}
 \tableofcontents
@@ -89,22 +91,22 @@ A deformable surface can be characterized by vector of shape parameters $q = ( q
 on the surface:
 \begin{equation}
 \begin{split}
-	S(q,d) = T_d(S_q) : \mathbb{R}^{n_q} X \mathbb{R}^{n_d} X \Omega \longrightarrow R^3 \\	
-	(q_1, ... , q_{n_q}, d_1, ... , d_{n_d} ) \longmapsto T_d(P_q(r,x))	\end{split}
+	S(q,d)~=~T_d(S_q) ~:~\mathbb{R}^{n_q}~X~\mathbb{R}^{n_d}~X~\Omega~\longrightarrow~R^3 \\	
+	(q_1,~... ,~q_{n_q},~d_1,~... ,~d_{n_d} )~\longmapsto~T_d(P_q(r,x))	\end{split}
 \end{equation}
 where (r,s) denotes a point of surface parameter domain $\Omega$.
 
-A deformable surface can be represented by continuous and discrete models. With discrete representation, the geometry of surfaces is only known at a finite set of points. Continuous surfaces representation must be discretized for computational needs but they offer the ability to compute differential quantities such as surface norm or curvatures almost everywhere on the surface. Most discrete models are meshes defined as a set of points with some connecting relation that includes topological constraints. 
+A deformable surface can be represented by continuous and discrete models. With discrete representation, the geometry of surfaces is only known at a finite set of points. Continuous surfaces representation must be discretised for computational needs but they offer the ability to compute differential quantities such as surface norm or curvatures almost everywhere on the surface. Most discrete models are meshes defined as a set of points with some connecting relation that includes topological constraints. 
 %-------------------------------------------------------------------
 \subsection{Orientable 2-Manifold Mesh: A discrete real-world object}
-The discrete surfaces of object are normally represented using mesh structure. The definition of surface mesh is of combinatorial nature~\cite{Kettner1999}, that improves reasoning about data structure like the same facet cannot appear on both sides of an edge. The surface mesh is a union of $C = V \cup E \cup F$ of three disjoint sets together with an incidence relation where V the vertices, E the edges and F the facets of the mesh. The incident relation on C must be symmetric. No two elements from the same set V, E, F are incident. There are four additional conditions: (1) every edge is incident to two vertices, (2) every edge is incident to two facets, (3) for every incident pair of vertices or facets, there are exactly two edges incident to both and (4) every vertex and every facets is incident to at least one other element. The neighborhood of a vertex are edges and facets which are incident to that vertex. Thus, the neighborhood decomposes into disjoint cycles, where each cycle is an alternating sequence of edges and facets.
+The discrete surfaces of object are normally represented using mesh structure. The definition of surface mesh is of combinatorial nature~\cite{Kettner1999}, that improves reasoning about data structure like the same facet cannot appear on both sides of an edge. The surface mesh is a union of $C~=~V~\cup~E~\cup~F$ of three disjoint sets together with an incidence relation where V the vertices, E the edges and F the facets of the mesh. The incident relation on C must be symmetric. No two elements from the same set $V$, $E$, $F$ are incident. There are four additional conditions: (1) every edge is incident to two vertices, (2) every edge is incident to two facets, (3) for every incident pair of vertices or facets, there are exactly two edges incident to both and (4) every vertex and every facets is incident to at least one other element. The neighbourhood of a vertex are edges and facets which are incident to that vertex. Thus, the neighbourhood decomposes into disjoint cycles, where each cycle is an alternating sequence of edges and facets.
 
 Genus is a topologically invariant property of a surface defined as the largest number of non-intersecting closed curves that can be drawn on the surface without separating it. Roughly speaking, it is the number of holes in a surface. Also, it is a complete invariant in the sense that, if two orientable closed surfaces have the same genus, then they must be topologically equivalent. The genus of a surface is related to the Euler characteristic $\chi$. For an orientable surface such as a sphere (genus 0) or torus (genus 1), the relationship is
 \begin{equation}
-\chi = 2 - 2g
+\chi~=~2~-~2g
 \end{equation}
 
-There are two types of mesh representations i.e., manifold and non-manifold mesh as shown in figure~\ref{fig:meshes}. A mesh is manifold if (1) each edge is incident to only one or two facets and (2) the facets incident to a vertex form a close or an open fan i.e. for each point on a manifold surface there exists a neighborhood that is homemorphic to the open disc. If every vertex has a closed fan, the given manifold has no boundary. If a vertex has a open fan, then edges that are incident to one facet; they are called border edges and they form the boundary of the manifold mesh. A non-manifold example would be two tetrahedra glued together at a single vertex or common edge as shown in figure~\ref{fig:meshes}. A mesh is a 2-manifold if and only if the neighborhood of each vertex decomposes into a single cycle. The next distinction is between orientable and non-orientable mesh. A mesh is oriented if each cycle around a facet is oriented and if, for each edge, the two cycles of its two incident facets are oriented in opposite direction. A manifold mesh is orientable if there exists such an orientation. This new data structure only consider orientable 2-manifolds mesh representation with and without boundary. The set of discrete surfaces include triangulation and simplex meshes in order to extend the notion of discrete representation to include any surface representation as shown in figure~\ref{fig:triangulationSimplexMesh}.
+There are two types of mesh representations i.e., manifold and non-manifold mesh as shown in figure~\ref{fig:meshes}. A mesh is manifold if (1) each edge is incident to only one or two facets and (2) the facets incident to a vertex form a close or an open fan i.e. for each point on a manifold surface there exists a neighbourhood that is homemorphic to the open disc. If every vertex has a closed fan, the given manifold has no boundary. If a vertex has a open fan, then edges that are incident to one facet; they are called border edges and they form the boundary of the manifold mesh. A non-manifold example would be two tetrahedra glued together at a single vertex or common edge as shown in figure~\ref{fig:meshes}. A mesh is a 2-manifold if and only if the neighbourhood of each vertex decomposes into a single cycle. The next distinction is between orientable and non-orientable mesh. A mesh is oriented if each cycle around a facet is oriented and if, for each edge, the two cycles of its two incident facets are oriented in opposite direction. A manifold mesh is orientable if there exists such an orientation. This new data structure only consider orientable 2-manifolds mesh representation with and without boundary. The set of discrete surfaces include triangulation and simplex meshes in order to extend the notion of discrete representation to include any surface representation as shown in figure~\ref{fig:triangulationSimplexMesh}.
 \begin{figure}[!t]
 	\centering
 	\includegraphics[width=155mm, height=40mm]{Meshes}
@@ -113,17 +115,17 @@ There are two types of mesh representations i.e., manifold and non-manifold mesh
 \end{figure}
 %------------------------------------------------------------------------
 \subsection{Special Case A: Triangular Meshes}
-A common representation of discrete surfaces are triangulation $\tau$ for which the surface $\mathbb{R} \subset S$ is composed of a set of adjacent triangles $T_i$, i = 1, ... , n, such that 
+A common representation of discrete surfaces are triangulation $\tau$ for which the surface $\mathbb{R} \subset S$ is composed of a set of adjacent triangles $T_i$, $i~=~1,~... ,~n$, such that 
 \begin{itemize}
-	\item $\cup_{i=1}^n = T_i = \mathbb{R}$.
-	\item If $T_i \cap T_j \neq \phi$, then $T_i \cap T_j$ is either a common edge of $T_i$ and $T_j$ or a common vertex of $T_i$ and $T_j$. 
+	\item $\cup_{i=1}^n~=~T_i~=~\mathbb{R}$.
+	\item If $T_i~\cap~T_j~\neq~\phi$, then $T_i~\cap~T_j$ is either a common edge of $T_i$ and $T_j$ or a common vertex of $T_i$ and $T_j$. 
 \end{itemize}
-Given a triangular mesh $\tau$ of a regular region $R \subset S$ of a surface S, we shall denote by F the number of triangles(faces), by E the number of sides(edges), and by V the number of vertices of the triangulation. The number 
+Given a triangular mesh $\tau$ of a regular region $R~\subset~S$ of a surface S, we shall denote by F the number of triangles(faces), by E the number of sides(edges), and by V the number of vertices of the triangulation. The number 
 \begin{equation}
-F - E + V = \chi
+F~-~E~+~V~=~\chi
 \end{equation}
 is called the Euler-poincar$\acute{e}$ characteristic of the triangulation.
-Each triangles of a triangulation shares at least one of its edge with a neighboring triangle.
+Each triangles of a triangulation shares at least one of its edge with a neighbouring triangle.
 \begin{figure}[!t]
 	\centering
 	\includegraphics[width=100mm, height=40mm]{TriangulationSimplexMesh}
@@ -132,27 +134,27 @@ Each triangles of a triangulation shares at least one of its edge with a neighbo
 \end{figure}
 %----------------------------------------------------------------------
 \subsection{Special Case B: Simplex Meshes}
-Simplex meshes are used for discrete surface representation. Simplex meshes have two main properties, (1) each vertex is adjacent to a fixed number of neighboring vertices: 2 for a contour (1-simplex mesh), 3 for a surface (2-simplex mesh) and 4 for tetrahedron (3-simplex mesh); and (2) the topology of a simplex mesh is dual of a triangulation. A $k$-simplex can be referred a $(k+1)$-connected mesh. For instance, a segment of non-zero length is a 1-simplex, a triangle (polygon) of non-zero area is a 2-simplex and a tetrahedron of non-zero volume is a 3-simplex mesh. Formally, a $k$-Simplex Mesh $(kSM)$ of $\mathbb{R}^3$ is defined as a pair $(V(M), N(M))$ \cite{Delingette1994} where:
+Simplex meshes are used for discrete surface representation. Simplex meshes have two main properties, (1) each vertex is adjacent to a fixed number of neighbouring vertices: 2 for a contour (1-simplex mesh), 3 for a surface (2-simplex mesh) and 4 for tetrahedron (3-simplex mesh); and (2) the topology of a simplex mesh is dual of a triangulation. A $k$-simplex can be referred a $(k+1)$-connected mesh. For instance, a segment of non-zero length is a 1-simplex, a triangle (polygon) of non-zero area is a 2-simplex and a tetrahedron of non-zero volume is a 3-simplex mesh. Formally, a $k$-Simplex Mesh $(kSM)$ of $\mathbb{R}^3$ is defined as a pair $(V(M)$, $N(M))$ \cite{Delingette1994} where:
 \begin{equation}
-	V(M) = \{P_i\}, \{i = 1,..., n\}, P_i\  \epsilon\  \mathbb{R}^3
+	V(M)~=~\{P_i\},~\{i~=~1,..., n\},~P_i\ ~\epsilon\  ~\mathbb{R}^3
 	\label{eq1}
 \end{equation}
 \begin{equation}
 	\begin{array}{c}
-		N(M) : \{1,...,n\} \longrightarrow \{1,...,n\}^{k+1} \\
-		i \longmapsto (N_1 (i), N_2 (i),...,N_{k+1} (i))
+		N(M)~:~\{1,...,n\}~\longrightarrow~\{1,...,n\}^{k+1} \\
+		i~\longmapsto~(N_1 (i), N_2 (i),...,N_{k+1} (i))
 	\end{array}
 	\label{eq2}
 \end{equation}
 \begin{equation}
 	\begin{array}{c}
-		\forall _i \ \epsilon \ \{1,...,n\}, \forall _j \ \epsilon \ \{1,...,k+1\}, \forall _l \ \epsilon \ \{1,...,k+1\}, \ l \neq j \\
-		N_j (i) \neq i
+		\forall _i \ \epsilon \ \{1,...,n\},~\forall _j \ \epsilon \ \{1,...,k+1\},~\forall _l \ \epsilon \ \{1,...,k+1\}, \ l \neq j \\
+		N_j (i)~\neq~i
 	\end{array}
 	\label{eq3}
 \end{equation}
 \begin{equation}
-	N_l (i) \neq N_j (i)
+	N_l (i)~\neq~N_j (i)
 	\label{eq4}
 \end{equation}
 $V(M)$ is the set of vertices of $M$ and $N(M)$ is the associated connectivity function. Equations ~(\ref{eq3}) and ~(\ref{eq4}) present a mesh from exhibiting loops. It is important to make a distinction between the topological nature of a mesh represented by its connectivity function N(M) and its geometric nature corresponding to the position of its vertices V(M). 
@@ -200,7 +202,7 @@ The Voronoi diagram is the dual of the Delaunay triangulation, and the Delaunay 
 \section{Implement Duality in ITK}
 %-------------------------------------------------------------------------
 \subsection{Existing Data Structure for Meshes in ITK}
-The QuadEdgeMesh data structure in itk, as depicted in figure~\ref{fig:QuadEdgeMeshStructure}, can handle discrete 2-manifold surfaces. It actually store the geometry and both primal and dual topology. It has a constant complexity local accesses an modifications. The QuadEdgeMesh data structure is a 3 layers structure in which the bottom layer is called QuadEdge (QE) layer that represents the topology, the intermediate layer is called QE Geometric (QEGeom) layer that linking topology and geometry and finally the upper layer is native to ITK called ITK layer. The QE data structure is presented in detail in~\cite{Gouaillard2006}. For each edge, there are 4 QEs in the structure as illustrated in figure~\ref{fig:QuadEdge}. It contains two primal QEs and two dual QEs. For the sake of simplicity, we only draw connection for one point and one face from QE to QEGeom and QEGeom to ITK layer as shown in figure~\ref{fig:QuadEdge}, conversely both points and faces are equally linked in the data structure. This data structure only need three operators as $Rot$, $Onext$ and $Splice$ to implement all other modifications (Eulor operator) and accessibility of the mesh. 
+The \emph{QuadEdgeMesh} data structure in itk, as depicted in figure~\ref{fig:QuadEdgeMeshStructure}, can handle discrete 2-manifold surfaces. It actually store the geometry and both primal and dual topology. It has a constant complexity local accesses an modifications. The \emph{QuadEdgeMesh} data structure is a 3 layers structure in which the bottom layer is called QuadEdge (\emph{QE}) layer that represents the topology, the intermediate layer is called QE Geometric (\emph{QEGeom}) layer that linking topology and geometry and finally the upper layer is native to ITK called ITK layer. The \emph{QE} data structure is presented in detail in~\cite{Gouaillard2006}. For each edge, there are 4 \emph{QE}s in the structure as illustrated in figure~\ref{fig:QuadEdge}. It contains two primal \emph{QE}s and two dual \emph{QE}s. For the sake of simplicity, we only draw connection for one point and one face from \emph{QE} to \emph{QEGeom} and \emph{QEGeom} to ITK layer as shown in figure~\ref{fig:QuadEdge}, conversely both points and faces are equally linked in the data structure. This data structure only need three operators as \emph{Rot}, \emph{Onext} and \emph{Splice} to implement all other modifications (Euler operator) and accessibility of the mesh. 
 \begin{figure}
 	\centering
 	\subfigure[QuadEdgeMesh structure] {
@@ -214,7 +216,7 @@ The QuadEdgeMesh data structure in itk, as depicted in figure~\ref{fig:QuadEdgeM
 	\caption{Existing data structures}
 	\label{fig:QuadEdgeMeshStructure}
 \end{figure}
-Currently, QuadEdgeMesh data structure have topological duality but lack geometrical duality as represent in table~\ref{table:existingStructure}. There are only few filters available in ITK that transform triangular mesh to simplex mesh but it is specific not generic to duality. Additionally, in many cases it is of much interest to have the both representation of a discrete surface directly integrated in the structure. Our contribution includes an extension of data structure that contain both primal and dual mesh simultaneously, a filter that transform primal mesh to primal/dual mesh just using single data structure and an adaptor for displaying dual mesh.
+Currently, \emph{QuadEdgeMesh} data structure have topological duality but lack geometrical duality as represent in table~\ref{table:existingStructure}. There are only few filters available in ITK that transform triangular mesh to simplex mesh but it is specific not generic to duality. Additionally, in many cases it is of much interest to have the both representation of a discrete surface directly integrated in the structure. Our contribution includes an extension of data structure that contain both primal and dual mesh simultaneously, a filter that transform primal mesh to primal/dual mesh just using single data structure and an adaptor for displaying dual mesh.
 \begin{table}
 	\begin{center}
 		\caption{QuadEdgeMesh Data Structure}
@@ -226,15 +228,15 @@ Currently, QuadEdgeMesh data structure have topological duality but lack geometr
 			\noalign{\smallskip}	
 			\hline  	
 			\noalign{\smallskip}
-			Geometry & Yes & No \\ 
+			Geometry & Yes & \textbf{\underline{No}} \\ 
 			Topology & Yes & Yes \\ 
 			\hline
 	\end{tabular}
 	\end{center}
 \end{table}
 %--------------------------------------------------------------------
-\subsection{Extension in data structure, $QuadEdgeMeshWithDual$ data structure}
-We create a new class $itk::QuadEdgeMeshWithDual$ derived from $itk::QuadEdgeMesh$. This class now stores both primal and dual mesh simultaneously. The new design of $QuadEdgeMeshWithDual$ data structure is contained double reference i.e., one for primal point to dual cell and one for primal cell to dual point as depicted in figure~\ref{fig:QuadEdgeMeshWithDual}. For the sake of simplicity, we only draw connection from QE layer to QEGeom layer and QEGeom layer to ITK layer for one point and one face instead of both points and both faces as shown in figure~\ref{fig:QuadEdgeMeshWithDual}. The primal and dual overlapping structures of connections at QEGeom layer is shown in figure~\ref{fig:QEGeomLayer}.
+\subsection{Extension in data structure, \emph{QuadEdgeMeshWithDual} data structure}
+We create a new class \emph{itk::QuadEdgeMeshWithDual} derived from \emph{itk::QuadEdgeMesh}. This class now stores both primal and dual mesh simultaneously. The new design of \emph{QuadEdgeMeshWithDual} data structure is contained double reference i.e., one for primal point to dual cell and one for primal cell to dual point as depicted in figure~\ref{fig:QuadEdgeMeshWithDual}. For the sake of simplicity, we only draw connection from QE layer to QEGeom layer and QEGeom layer to ITK layer for one point and one face instead of both points and both faces as shown in figure~\ref{fig:QuadEdgeMeshWithDual}. The primal and dual overlapping structures of connections at QEGeom layer is shown in figure~\ref{fig:QEGeomLayer}.
 \begin{figure}
 	\centering
 	\subfigure[QuadEdgeMeshWithDual's layers] {
@@ -248,43 +250,45 @@ We create a new class $itk::QuadEdgeMeshWithDual$ derived from $itk::QuadEdgeMes
 	\caption{QuadEdgeMeshWithDual data structure}
 	\label{fig:QuadEdgeMeshWithDualFull}
 \end{figure}
-Furthermore, this class contains three new containers; $DualPointsContainer$ for dual points, $DualCellsContainer$ for dual cells and $DualEdgeCellsContainer$ for boundary edges and three new functions; $AddDualPoint$ for adding dual point, $AddDualFace$ for dual cells (polygon) and $AddDualEdge$ for boundary edges. 
+Furthermore, this class contains three new containers; \emph{DualPointsContainer} for dual points, \emph{DualCellsContainer} for dual cells and \emph{DualEdgeCellsContainer} for boundary edges and three new functions; \emph{AddDualPoint} for adding dual point, \emph{AddDualFace} for dual cells (polygon) and \emph{AddDualEdge} for boundary edges. 
 
-In order to keep the primal-dual references in a single data structure, we have two design options. In first design, we use to maintain two look up tables; one table for storing references of primal cell to dual point and and second table for primal point to dual cell. The advantage of this approach is backward compatibility of code and test cases. The bad side of this design is to maintain these tables that having the complexity n log(n) causing severe degradation of performance in case of large mesh. In second design, we modify the existing data structure by adding two reference pair; primal point to dual cell and primal cell to dual point as shown below. With this design, no look up table is required to maintain the primal and dual references. So it is very efficient approach but not compatible with respect to previous code and test cases. 
+In order to keep the primal-dual references in a single data structure, we have two design options. In first design, we use to maintain two look up tables; one table for storing references of primal cell to dual point and and second table for primal point to dual cell. The advantage of this approach is backward compatibility of code and test cases. The bad side of this design is to maintain these tables that having the complexity $nlog(n)$ causing severe degradation of performance in case of large mesh. In second design, we modify the existing data structure by adding two reference pair; primal point to dual cell and primal cell to dual point as shown below. With this design, no look up table is required to maintain the primal and dual references. So it is very efficient approach but not compatible with respect to previous code and test cases. 
 
 %--- Todo -- illustrate both old and new code for origin ref type
-$typedef \ GeometricalQuadEdge< \\
-    std::pair<PointIdentifier, CellIdentifier>, \\
-    std::pair<CellIdentifier,  PointIdentifier>, \\
-    PrimalDataType, DualDataType \\
-    > QEPrimal;$
+\begin{verbatim}
+typedef GeometricalQuadEdge< std::pair<PointIdentifier, CellIdentifier>,
+                             std::pair<CellIdentifier,  PointIdentifier>,
+                             PrimalDataType, 
+                             DualDataType
+                             > QEPrimal;
+\end{verbatim}
 A summaries of changes in new data structure can be depicted in Table~\ref{table:secondDesign}
 \begin{table}
 	\begin{center}
 		\caption{Summaries of changes in new data structure}
 		\label{table:secondDesign}
-		\begin{tabular}{ p{3.5cm} p{3.5cm} p{2cm} p{3.7cm} }
+		\begin{tabular}{ l|l|c|c }
 			\hline	
-			\noalign{\smallskip} 
 			{\bf  }	& {\bf } 	& {\bf Old Data Structure}	& {\bf New Data Structure}\\
-			\noalign{\smallskip}	
 			\hline  	
-			\noalign{\smallskip}
-			Changes & OriginRef Type & Point ID, Cell ID & $Pair<Point, Cell>$, $Pair<Cell, Point>$\\ 
-			Additions & Dual Containers & - & $DualPointsContainer$, $DualCellsContainer$, $DualEdgeCellsContainer$\\
-			Not yet implemented & Dual Data Containers & - & -\\
+			\multirow{2}{*}{\vspace{0.5cm}Changes}  & OriginRef Type & Point ID & $Pair<Point, Cell>$ \\
+			  &  &  Cell ID & $Pair<Cell, Point>$ \\ 
+			Additions & Dual Containers & \multirow{3}{*}{-} & \emph{DualPointsContainer} \\ 
+			  &  &  & \emph{DualCellsContainer} \\ 
+			  &  &  & \emph{DualEdgeCellsContainer}\\
+			Not yet implemented & Dual Data Containers &  - &  -  \\
 			\hline
 	\end{tabular}
 	\end{center}
 \end{table}
 %----------------------------------------------------------------------
 \subsection{Primal to primal/dual filter }
-In order to transform primal mesh into dual mesh, we also create a new filter called itk::QuadEdgeMeshToQuadEdgeMeshWithDualFilter. This filter is templated with QuadEdgeMeshWithDual data structure. This filter generate dual mesh from primal mesh in three phases; first phase is computing dual point from primal cells, second phase is computing dual cells from primal points, and in last phase, primal borders edges are used to generate dual border cell.
+In order to transform primal mesh into dual mesh, we also create a new filter called \emph{itk::QuadEdgeMeshToQuadEdgeMeshWithDualFilter}. This filter is templated with \emph{QuadEdgeMeshWithDual} data structure. This filter generate dual mesh from primal mesh in three phases; first phase is computing dual point from primal cells, second phase is computing dual cells from primal points, and in last phase, primal borders edges are used to generate dual border cell.
 
 We also implement a new adaptor for showing dual mesh.
 %-----------------------------------------------------------------------
 \subsubsection{Dual point functor}
-As explained before, there is no geometrical duality between the primal and the dual. Therefore any formula that compute points that satisfy the criteria of duality detailed in section 2.1 can be use. In order not to have a single option that may limits the application of the filter, a functor is used to compute the dual point. Depending on the case faced, the user is able to choose from the already two existing dual point functor, or use his own functor. Except from the classic ITK macro, typedef definition and constructor/destructor, the functor has only one method where the process is done.
+As explained before, there is no geometrical duality between the primal and the dual. Therefore any formula that compute points that satisfy the criteria of duality detailed in section 2.1 can be use. In order not to have a single option that may limits the application of the filter, a functor is used to compute the dual point. Depending on the case faced, the user is able to choose from the already two existing dual point functor, or use his own functor. Except from the classic ITK macro, \emph{typedef} definition and constructor/destructor, the functor has only one method where the process is done.
 \begin{verbatim}
 template< class TInputMesh, class TOutputMesh=TInputMesh>
 class DualPointFunctor
@@ -306,22 +310,40 @@ M~=~\frac{P_1~+~P_2~+~\mathnormal{...}~+~P_n}{n}
 where $P_1,~P_2, ...,~P_n$ are the points retrieve from the current cell.
 
 \paragraph{\textbf{Circumcentre}}
-The circumcentre is a particular dual point of triangle mesh. It is the centre of the circumcircle of a triangle and is determine by the crossing point of the perpendicular bisectors, is not always include in its primal cell face, and more costly to compute. The interest of this dual point is in the case of the Delaunay triangulation in order to obtain its dual, the corresponding Voronoi tesselation. The following equation is used to compute the centre.
+The circumcentre is a particular dual point of triangle mesh. It is the centre of the circumference circle of a triangle and is determine by the crossing point of the perpendicular bisectors, is not always include in its primal cell face, and more costly to compute. The interest of this dual point is in the case of the Delaunay triangulation in order to obtain its dual, the corresponding Voronoi tesselation. The following equation is used to compute the centre
 \begin{equation}
 \label{eq6}
 M~=~P_1~+~\frac{|P_3-P_1|^2~[(P_2-P_1)\times(P_3-P_1)]\times(P_2-P_1)~+~|P_2-P_1|^2~[(P_3-P_1)\times(P_2-P_1)]\times(P_3-P_1)}{2~|(P_2-P_1)\times(P_3-P_1)|^2}
 \end{equation}
-Like for the barycentre, the points $P_1,~P_2,~P_3$ are retrieved from the current triangle. In order to simplify the calculus and avoid the use of square roots the edge length are squared and the coordinates of all the point relative to the first point $P_1$ are used. Due to the floating-point errors such solution may be unstable in the case of the denominator is close to $0$. To prevent such case, the exact geometric predicate implemented for ITK \cite{Moreau2011} is use for the cross product calculation.
+where $P_1,~P_2,~P_3$ are the points retrieved from the current triangle, and $\times$ the cross product. In order to simplify the calculus and avoid the use of square roots the edge length are squared and the coordinates of all the point relative to the first point $P_1$ are used. Due to the floating-point errors such solution may be unstable in the case of the denominator is close to $0$. To prevent such case, the exact geometric predicate implemented for ITK \cite{Moreau2011} is use for the cross product calculation.
 %-----------------------------------------------------------------------
 \subsubsection{Dual borders calculation}
-As shown in figure \ref{} the dual of a primal mesh that contain a border is not a closed mesh. The dual point obtain from the border are not included into a face. This representation may be problematic to some other process which may discard single edges and points (\emph{e.i.} writing the dual mesh, see figure \ref{}). An option is the border dual point in order to close the dual mesh, but this solution may lead to some visual errors. A boolean, set using the \emph{SetBorders()} methods, allow the user to decide if the filter compute the dual borders or not.
+As shown in figure \ref{fig:dualMeshes}, the dual of a primal mesh that contain a border is not a closed mesh. The dual edge point obtain from the primal border are not included into any faces of the dual. This representation may be problematic to some other process which may not take into account the \emph{EdgeContainer} that store the edges in the \emph{QuadEdgeMesh} structure, and therefore discard edges that are not part of any face (\emph{e.i.} Mesh writting filter). If the dual edge point are not compute, the effect still occur but is less important that in the previous case. Another option is to create a border by connecting the dual edge point, however this solution may lead to some visual errors, such as overlapping faces in the dual, in particular configuration. The \emph{SetBorders()} methods allow the user to decide how the filter should manage the borders (Fig. \ref{fig:BorderManagment}). By default the filter will compute the dual edge point and create a border to the dual mesh.
+\begin{figure}
+	\centering
+	\subfigure[Dual without dual edge point] {
+		\includegraphics[width=0.3\textwidth]{border1}
+		\label{fig:BorderManagment1}
+		}
+	\subfigure[Dual with dual edge point] {
+		\includegraphics[width=0.3\textwidth]{border2}
+		\label{fig:BorderManagment2}
+		}
+	\subfigure[Dual with dual edge point border] {
+			\includegraphics[width=0.3\textwidth]{border3}
+			\label{fig:BorderManagment3}
+			}
+	\caption{Dual borders management options}
+	\label{fig:BorderManagment}
+\end{figure}
+
 %-----------------------------------------------------------------------
 \section{Validation}
 %-----------------------------------------------------------------------
 \subsection{Test on planer triangular to simplex mesh with and without holes}
-We create a square triangulated (primal) mesh as shown in figure~\ref{fig:subfiga}. Green color represents primal points and cells. From this primal mesh, we would try to generate dual mesh. First, we generate dual points using the BarycentreDualPointFunctor on the primal cells as shown in figure~\ref{fig:subfigc} with red points. We add these dual points in mDualPointsContainer of itk::QuadEdgeMeshWithDual by using AddDualPoint(). Second, we iterate around each primal point to form dual cells and add dual cell in mDualCellsContainer of itk::QuadEdgeMeshWithDual by using AddDualFace(). By doing this we generate all dual cells except boundary cells. Dual cell are represented by red color in figure~\ref{fig:subfigc}.\\
-In order to tackle borders, first we get boundary edges of primal mesh. Select one boundary edge from list; create a new point (dual) in the middle of edge and add in mDualPointsContainer of itk::QuadEdgeMeshWithDual by using AddDualPoint(...).  
-In figure~\ref{fig:subfige}, red points on border lines represent boundary points of dual mesh. Then, find the dual point associated with the face on the left and make an edge between these two dual points. Now iterate along left triangle to form dual cell and add this dual cell into mDualCellsContainer of itk::QuadEdgeMeshWithDual by using AddDualFace(). In figure~\ref{fig:subfige}, red cells represent dual cells. The final dual mesh generated from primal mesh is shown in following figure~\ref{fig:subfigf}. 
+We create a square triangulated (primal) mesh as shown in figure~\ref{fig:subfiga}. Green color represents primal points and cells. From this primal mesh, we would try to generate dual mesh. First, we generate dual points using the \emph{BarycentreDualPointFunctor} on the primal cells as shown in figure~\ref{fig:subfigc} with red points. We add these dual points in \emph{m\_DualPointsContainer} of itk::QuadEdgeMeshWithDual by using \emph{AddDualPoint()}. Second, we iterate around each primal point to form dual cells and add dual cell in \emph{m\_DualCellsContainer} of \emph{itk::QuadEdgeMeshWithDual} by using \emph{AddDualFace()}. By doing this we generate all dual cells except boundary cells. Dual cell are represented by red color in figure~\ref{fig:subfigc}.\\
+In order to tackle borders, first we get boundary edges of primal mesh. Select one boundary edge from list; create a new point (dual) in the middle of edge and add in \emph{m\_DualPointsContainer} of \emph{itk::QuadEdgeMeshWithDual} by using \emph{AddDualPoint(...)}.  
+In figure~\ref{fig:subfige}, red points on border lines represent boundary points of dual mesh. Then, find the dual point associated with the face on the left and make an edge between these two dual points. Now iterate along left triangle to form dual cell and add this dual cell into \emph{m\_DualCellsContainer} of \emph{itk::QuadEdgeMeshWithDual} by using \emph{AddDualFace()}. In figure~\ref{fig:subfige}, red cells represent dual cells. The final dual mesh generated from primal mesh is shown in following figure~\ref{fig:subfigf}. 
 \begin{figure}
 	\centering
 	\subfigure[Primal mesh] {
@@ -363,7 +385,7 @@ For testing this data structure and filter, we deleted one primal edge and re-ru
 \end{figure}
 %-------------------------------------------------------------------------
 \subsection{Test with Delaunay to Voronoi}
-Using the PointSetToDelaunayTriangulationFilter \cite{Rigaud2012b}, we tested this data structure on Delaunay mesh to Voronoi diagram. We input a planer Delaunay mesh into new data structure as shown in figure~\ref{fig:Delauny_A} and generate the corresponding Voronoi diagram by using QuadEdgeMeshToQuadEdgeMeshWithDualFilter and the CircumcentreDualPointFunctor as shown in figure~\ref{fig:Delauny_B}. Later, the Voronoi diagram is shown in figure~\ref{fig:Delauny_C} using new adaptor $itk::QuadEdgeMeshWithDualAdaptor$.\\
+Using the \emph{PointSetToDelaunayTriangulationFilter} \cite{Rigaud2012b}, we tested this data structure on Delaunay mesh to Voronoi diagram. We input a planer Delaunay mesh into new data structure as shown in figure~\ref{fig:Delauny_A} and generate the corresponding Voronoi diagram by using \emph{QuadEdgeMeshToQuadEdgeMeshWithDualFilter} and the \emph{CircumcentreDualPointFunctor} as shown in figure~\ref{fig:Delauny_B}. Later, the Voronoi diagram is shown in figure~\ref{fig:Delauny_C} using new adaptor \emph{itk::QuadEdgeMeshWithDualAdaptor}.\\
 \begin{figure}[!b]
 	\centering
 	\subfigure[Delaunay Mesh] {
@@ -403,29 +425,37 @@ We perform last test on non-planer mesh. A spherical triangulation mesh can be s
 \end{figure}
 %--------------------------------------------------------------------------
 \section{Usage}
-An example SimplexMesh.cxx is provided with the sources and is used for the tests. The filter QuadEdgeMeshToQuadEdgeMeshWithDualFilter is templated on float and 3 dimensions itk::QuadEdgeMeshWithDual. 
+An example \emph{SimplexMesh.cxx} is provided with the sources and is used for the tests. The filter \emph{QuadEdgeMeshToQuadEdgeMeshWithDualFilter} is templated on float and 3 dimensions \emph{itk::QuadEdgeMeshWithDual}.
+\begin{verbatim}
+// Typedef definition
+typedef itk::QuadEdgeMeshWithDual< float, 3 >          MeshType;
+typedef itk::QuadEdgeMeshToQuadEdgeMeshWithDualFilter< MeshType >  
+                                                       FillDualFilterType;
+typedef itk::QuadEdgeMeshWithDualAdaptor< MeshType >   AdaptorType;
 
-  $typedef itk::QuadEdgeMeshWithDual< float, 3 > MeshType;$ \\
-  $typedef itk::QuadEdgeMeshToQuadEdgeMeshWithDualFilter< MeshType >  FillDualFilterType; $\\
+typedef itk::VTKPolyDataWriter< MeshType >    MeshWriterType;
+typedef itk::VTKPolyDataWriter< AdaptorType > DualMeshWriterType;
 
-  $typedef itk::VTKPolyDataWriter< MeshType > MeshWriterType;$\\
-  $typedef itk::QuadEdgeMeshWithDualAdaptor< MeshType >  AdaptorType;$\\
-  $typedef itk::VTKPolyDataWriter< AdaptorType > DualMeshWriterType;$\\
+// Create primal mesh
+MeshType::Pointer myPrimalMesh = MeshType::New();
+CreateSquareTriangularMesh< MeshType >( myPrimalMesh );
 
-  $MeshType::Pointer myPrimalMesh = MeshType::New();$\\
-  $CreateSquareTriangularMesh< MeshType >( myPrimalMesh );$\\
+// Create dual mesh
+FillDualFilterType::Pointer fillDual = FillDualFilterType::New();
+fillDual->SetInput( myPrimalMesh );
+fillDual->Update();
 
-  $FillDualFilterType::Pointer fillDual = FillDualFilterType::New();$\\
-  $fillDual->SetInput( myPrimalMesh );$\\
-  $fillDual->Update( );$\\
+AdaptorType* adaptor = new AdaptorType();
+adaptor->SetInput( fillDual->GetOutput() );
 
-  $AdaptorType* adaptor = new AdaptorType();$\\
-  $adaptor->SetInput( fillDual->GetOutput() );$\\
+// Write dual mesh
+DualMeshWriterType::Pointer writer = DualMeshWriterType::New();
+writer->SetInput( adaptor );
+writer->SetFileName( "TestSquareTriangularSimplexMesh.vtk" );
+writer->Write();
+\end{verbatim}
 
-  $DualMeshWriterType::Pointer writer = DualMeshWriterType::New();$\\
-  $writer->SetInput( adaptor );$\\
-  $writer->SetFileName( "TestSquareTriangularSimplexMesh.vtk" );$\\
-  $writer->Write();$\\
+
  %--- Todo -- add future work -- multiresolution, simplex eulor op, subdivision, deformable surface
 \bibliographystyle{plain}
 \bibliography{InsightJournal}
