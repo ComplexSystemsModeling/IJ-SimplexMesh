@@ -77,36 +77,49 @@ $^{2}$Singapore Immunology Network, Agency for Science, Technology and Research 
 % scope of the document.
 \begin{abstract}
 \noindent
-This document describes an implementation in ITK of an extension of ITK (QE) to handle primal and dual mesh in one container and a filter that allow to calculate primal/dual mesh from the primal mesh. This new data structure, \emph{itk::QuadEdgeMeshWithDual}, is an extension of the already existing \emph{itk::QuadEdgeMesh}~\cite{Gouaillard2006}, with all the same properties, with the dual mesh in additional. With the new data structure, we compute a primal/dual mesh from primal mesh that share common topology but different sampling. This paper is accompanied with the source code and examples that should provide enough details for users.
+This document describes an extension of ITK to handle both primal and dual meshes simultaneously. This paper describe in particular the data structure, an extension of \emph{itk::QuadEdgeMesh}, a filter to compute and add to the the structure the dual of an existing mesh, and an adaptor which let a downward pipeline process the dual mesh as if it was a native itk::QuadEdgeMesh. The new data structure, \emph{itk::QuadEdgeMeshWithDual}, is an extension of the already existing \emph{itk::QuadEdgeMesh}~\cite{Gouaillard2006}, which already included by default the due topology, to handle dual geometry as well. Two types of primal meshes have been specifically illustrated: triangular / simplex meshes and voronoi / delaunay. A functor mechanism has been implemented to allow for different kind of computation of the dual geometry. This paper is accompanied with the source code and examples.
 \end{abstract}
 \IJhandlenote{\IJhandlerIDnumber}
 \tableofcontents
 %----------------- Section 1:Surfaces ----------------------------------
 \section{Surfaces}
-\subsection{Notion of deformable surfaces}
 
-%---- Todo -- Remove deformable surfaces
-%-----Todo -- add genus general formual and define components, border cells
-A deformable surface can be characterized by vector of shape parameters $q = ( q_1, ... , q_{n_q})^T$ and vector of deformation parameters $q = ( d_1, ... , d_{n_d})^T$ that controls the application of a global transformation $T_d$ 
-on the surface:
-\begin{equation}
-\begin{split}
-	S(q,d)~=~T_d(S_q) ~:~\mathbb{R}^{n_q}~X~\mathbb{R}^{n_d}~X~\Omega~\longrightarrow~R^3 \\	
-	(q_1,~... ,~q_{n_q},~d_1,~... ,~d_{n_d} )~\longmapsto~T_d(P_q(r,x))	\end{split}
-\end{equation}
-where (r,s) denotes a point of surface parameter domain $\Omega$.
+% NOTE ALEX: to keep for a different paper, out of scope here.
+% \subsection{Notions of deformable surfaces}
+%
+% A deformable surface can be characterized by vector of shape parameters $q = ( q_1, ... , q_{n_q})^T$ and vector of deformation parameters $q = ( d_1, ... , % d_{n_d})^T$ that controls the application of a global transformation $T_d$ 
+% on the surface:
+% \begin{equation}
+% \begin{split}
+%	S(q,d)~=~T_d(S_q) ~:~\mathbb{R}^{n_q}~X~\mathbb{R}^{n_d}~X~\Omega~\longrightarrow~R^3 \\	
+%	(q_1,~... ,~q_{n_q},~d_1,~... ,~d_{n_d} )~\longmapsto~T_d(P_q(r,x))	\end{split}
+% \end{equation}
+% where (r,s) denotes a point of surface parameter domain $\Omega$.
+% 
+% A deformable surface can be represented by continuous and discrete models. With discrete representation, the geometry of surfaces is only known at a finite % set of points. Continuous surfaces representation must be discretised for computational needs but they offer the ability to compute differential quantities such % as surface norm or curvatures almost everywhere on the surface. Most discrete models are meshes defined as a set of points with some connecting relation % that includes topological constraints. 
 
-A deformable surface can be represented by continuous and discrete models. With discrete representation, the geometry of surfaces is only known at a finite set of points. Continuous surfaces representation must be discretised for computational needs but they offer the ability to compute differential quantities such as surface norm or curvatures almost everywhere on the surface. Most discrete models are meshes defined as a set of points with some connecting relation that includes topological constraints. 
 %-------------------------------------------------------------------
 \subsection{Orientable 2-Manifold Mesh: A discrete real-world object}
-The discrete surfaces of object are normally represented using mesh structure. The definition of surface mesh is of combinatorial nature~\cite{Kettner1999}, that improves reasoning about data structure like the same facet cannot appear on both sides of an edge. The surface mesh is a union of $C~=~V~\cup~E~\cup~F$ of three disjoint sets together with an incidence relation where V the vertices, E the edges and F the facets of the mesh. The incident relation on C must be symmetric. No two elements from the same set $V$, $E$, $F$ are incident. There are four additional conditions: (1) every edge is incident to two vertices, (2) every edge is incident to two facets, (3) for every incident pair of vertices or facets, there are exactly two edges incident to both and (4) every vertex and every facets is incident to at least one other element. The neighbourhood of a vertex are edges and facets which are incident to that vertex. Thus, the neighbourhood decomposes into disjoint cycles, where each cycle is an alternating sequence of edges and facets.
 
-Genus is a topologically invariant property of a surface defined as the largest number of non-intersecting closed curves that can be drawn on the surface without separating it. Roughly speaking, it is the number of holes in a surface. Also, it is a complete invariant in the sense that, if two orientable closed surfaces have the same genus, then they must be topologically equivalent. The genus of a surface is related to the Euler characteristic $\chi$. For an orientable surface such as a sphere (genus 0) or torus (genus 1), the relationship is
+The surfaces of real world objects are oriented 2-manifolds. Those are usually represented in computer using meshes which are the sampled, discrete version of the underlying, supposedly continuous surface. The definition of surface mesh is of combinatorial nature~\cite{Kettner1999}, that improves reasoning about data structure like the same facet cannot appear on both sides of an edge. The surface mesh is a union of $C~=~V~\cup~E~\cup~F$ of three disjoint sets together with an incidence relation where V the vertices, E the edges and F the facets of the mesh. The incident relation on C must be symmetric. No two elements from the same set $V$, $E$, $F$ are incident. There are four additional conditions: (1) every edge is incident to two vertices, (2) every edge is incident to two facets, (3) for every incident pair of vertices or facets, there are exactly two edges incident to both and (4) every vertex and every facets is incident to at least one other element. The neighbourhood of a vertex are edges and facets which are incident to that vertex. Thus, the neighbourhood decomposes into disjoint cycles, where each cycle is an alternating sequence of edges and facets.
+
+A surface mesh is 2-manifold if (1) each edge is incident to only one or two facets and (2) the facets incident to a vertex form a close or an open fan i.e. for each point on a 2-manifold there exists a neighbourhood that is homeomorphic to the open disc. If every vertex has a closed fan, the given 2-manifold has no boundary. If a vertex has a open fan, then edges that are incident to one facet; they are called border edges and they form the boundary of the 2-manifold mesh. A non-manifold example would be two tetrahedra glued together at a single vertex or common edge as shown in figure~\ref{fig:meshes}. A mesh is a 2-manifold if and only if the neighbourhood of each vertex decomposes into a single cycle. The next distinction is between orientable and non-orientable mesh. A surface mesh is oriented if each cycle around a facet is oriented and if, for each edge, the two cycles of its two incident facets are oriented in opposite direction. A 2-manifold mesh is orientable if there exists such an orientation. This new data structure only consider orientable 2-manifolds mesh representation with and without boundary. 
+
+Genus is a topologically invariant property of a surface defined as the largest number of non-intersecting closed curves that can be drawn on the surface without separating it. Also, it is a complete invariant in the sense that, if two orientable closed surfaces have the same genus, then they must be topologically equivalent. The genus of a surface is related to the Euler characteristic $\chi$. For an orientable surface such as a sphere (genus 0) or torus (genus 1), the relationship is
+
 \begin{equation}
-\chi~=~2~-~2g
+\chi~=~2~-~2g~-b
 \end{equation}
 
-There are two types of mesh representations i.e., manifold and non-manifold mesh as shown in figure~\ref{fig:meshes}. A mesh is manifold if (1) each edge is incident to only one or two facets and (2) the facets incident to a vertex form a close or an open fan i.e. for each point on a manifold surface there exists a neighbourhood that is homemorphic to the open disc. If every vertex has a closed fan, the given manifold has no boundary. If a vertex has a open fan, then edges that are incident to one facet; they are called border edges and they form the boundary of the manifold mesh. A non-manifold example would be two tetrahedra glued together at a single vertex or common edge as shown in figure~\ref{fig:meshes}. A mesh is a 2-manifold if and only if the neighbourhood of each vertex decomposes into a single cycle. The next distinction is between orientable and non-orientable mesh. A mesh is oriented if each cycle around a facet is oriented and if, for each edge, the two cycles of its two incident facets are oriented in opposite direction. A manifold mesh is orientable if there exists such an orientation. This new data structure only consider orientable 2-manifolds mesh representation with and without boundary. The set of discrete surfaces include triangulation and simplex meshes in order to extend the notion of discrete representation to include any surface representation as shown in figure~\ref{fig:triangulationSimplexMesh}.
+With g being the genus, and b being the number of borders (for non-closed surfaces). 
+
+Given an arbitrary polygonal mesh $\tau$ of a regular region $R~\subset~S$ of a surface S, we shall denote by F the number of polygonal faces, by E the number of sides(edges), and by V the number of vertices of the triangulation. Another way to compute the Euler characteristic is then
+\begin{equation}
+F~-~E~+~V~=~\chi
+\end{equation}
+
+
+Special cases of discrete 2-manifolds of interest to us are triangular meshes and simplex meshes illustrated in figure~\ref{fig:triangulationSimplexMesh}.
 \begin{figure}[!t]
 	\centering
 	\includegraphics[width=155mm, height=40mm]{Meshes}
@@ -120,11 +133,6 @@ A common representation of discrete surfaces are triangulation $\tau$ for which 
 	\item $\cup_{i=1}^n~=~T_i~=~\mathbb{R}$.
 	\item If $T_i~\cap~T_j~\neq~\phi$, then $T_i~\cap~T_j$ is either a common edge of $T_i$ and $T_j$ or a common vertex of $T_i$ and $T_j$. 
 \end{itemize}
-Given a triangular mesh $\tau$ of a regular region $R~\subset~S$ of a surface S, we shall denote by F the number of triangles(faces), by E the number of sides(edges), and by V the number of vertices of the triangulation. The number 
-\begin{equation}
-F~-~E~+~V~=~\chi
-\end{equation}
-is called the Euler-poincar$\acute{e}$ characteristic of the triangulation.
 Each triangles of a triangulation shares at least one of its edge with a neighbouring triangle.
 \begin{figure}[!t]
 	\centering
@@ -132,9 +140,11 @@ Each triangles of a triangulation shares at least one of its edge with a neighbo
 	\caption{Triangulation and Simplex Mesh}
 	\label{fig:triangulationSimplexMesh}
 \end{figure}
+Triangles being the simplest polygon that can represent a surface, it has been used intensively in Computer graphics and is still ubiquitous today in surface representations and corresponding data formats.
+
 %----------------------------------------------------------------------
 \subsection{Special Case B: Simplex Meshes}
-Simplex meshes are used for discrete surface representation. Simplex meshes have two main properties, (1) each vertex is adjacent to a fixed number of neighbouring vertices: 2 for a contour (1-simplex mesh), 3 for a surface (2-simplex mesh) and 4 for tetrahedron (3-simplex mesh); and (2) the topology of a simplex mesh is dual of a triangulation. A $k$-simplex can be referred a $(k+1)$-connected mesh. For instance, a segment of non-zero length is a 1-simplex, a triangle (polygon) of non-zero area is a 2-simplex and a tetrahedron of non-zero volume is a 3-simplex mesh. Formally, a $k$-Simplex Mesh $(kSM)$ of $\mathbb{R}^3$ is defined as a pair $(V(M)$, $N(M))$ \cite{Delingette1994} where:
+Simplex meshes are used for discrete surface representation. Simplex meshes have two main properties, (1) each vertex is adjacent to a fixed number of neighbouring vertices: 2 for a contour (1-simplex mesh), 3 for a surface (2-simplex mesh) and 4 for tetrahedron (3-simplex mesh, not treated here); and (2) the topology of a 2-simplex mesh is dual of a triangulation. A $k$-simplex can be referred a $(k+1)$-connected mesh. For instance, a segment of non-zero length is a 1-simplex, a triangle (polygon) of non-zero area is a 2-simplex and a tetrahedron of non-zero volume is a 3-simplex mesh. Formally, a $k$-Simplex Mesh $(kSM)$ of $\mathbb{R}^3$ is defined as a pair $(V(M)$, $N(M))$ \cite{Delingette1994} where:
 \begin{equation}
 	V(M)~=~\{P_i\},~\{i~=~1,..., n\},~P_i\ ~\epsilon\  ~\mathbb{R}^3
 	\label{eq1}
@@ -160,17 +170,17 @@ Simplex meshes are used for discrete surface representation. Simplex meshes have
 $V(M)$ is the set of vertices of $M$ and $N(M)$ is the associated connectivity function. Equations ~(\ref{eq3}) and ~(\ref{eq4}) present a mesh from exhibiting loops. It is important to make a distinction between the topological nature of a mesh represented by its connectivity function N(M) and its geometric nature corresponding to the position of its vertices V(M). 
 
 The structure of a simplex mesh is the one of a simply connected graph and does not in itself constitute a new surface representation. The simplex mesh representation has several desirable properties that makes them well suited for the recovery of geometric models from range data. The characteristics of simplex mesh for discrete surfaces includes generality (represents all types of orientable surfaces regardless of their genus and end numbers), simplicity (minimum number of vertices to represents a surface or shape) and adaptability.
+
 %----------------- Section 2: Notion of Duality -------------------------
 \section{Duality}
 \subsection{Notion of Duality}
-We define $A$ and $B$ to be dual meshes i.e., $B$ is dual of $A$ and vice versa, if the following conditions are satisfied.
+We define $A$ and $B$ to be dual surface meshes i.e., $B$ is dual of $A$ and vice versa, if the following conditions are satisfied.
 \begin{itemize}
 	\item The number of vertices of $A$ is the same as the number of face of $B$, so that they can be put into one-to-one correspondence.
 	\item The number of vertices of $B$ is the same as the number of face of $A$, so that they can also be put into one-to-one correspondence.
 	\item Each pair of vertices of $A$ that map to adjacent faces in $B$ is joined by an edge which can be put into correspondence with the common edge of the associated pair of faces of $B$. The edges that join adjacent vertices of $B$ can be put into the same correspondence with the common edges of the associated pairs of elements of $A$. 
 \end{itemize}
-
-Furthermore, we can say that $A$ and $B$ are orthogonal dual meshes, if, in addition to above conditions, when the meshes are superimposed, the two edges in every dual pair are orthogonal. Figure~\ref{fig:dualMeshes} illustrates the duality of meshes. Each boundary edge of a face in mesh $A$ is put into correspondence with a half-open edge in mesh $B$ which starts at the corner corresponding to that face in $A$ as shown in figure~\ref{fig:dualMeshes}.
+Figure~\ref{fig:dualMeshes} illustrates the duality of meshes. Each boundary edge of a face in mesh $A$ is put into correspondence with a half-open edge in mesh $B$ which starts at the corner corresponding to that face in $A$ as shown in figure~\ref{fig:dualMeshes}.
 \begin{figure}[!t]
 	\centering
 	\subfigure[2D Triangular Mesh with its Dual] {
@@ -185,9 +195,9 @@ Furthermore, we can say that $A$ and $B$ are orthogonal dual meshes, if, in addi
 	\label{fig:dualMeshes}
 \end{figure}
 \subsection{Triangulation - Simplex Duality}
-The most interesting way of considering simplex meshes is through duality of triangulations. The structure of a $k$-simplex mesh is indeed closely related to the structure of a $k$-triangulation. A $k$-triangulation of $\mathbb{R}^d$ is composed of $p$-simplices ( $1 \leq p \leq k$ ) which are the $p$-faces of the triangulation. We define a $p$-face of a $k$-simplex mesh as being the dual of a ($k-p$) simplices of a $k$-triangulation. For instance, a 1-face of a 2-simplex mesh is an edge and a 2-face of a 2-simplex mesh is polygon. In general, a $p$-face of a $k$-simplex mesh is a ($p-1$)-simplex mesh and is, therefore, made of $q$-faces ($q < p$). A Simplex mesh is said to be regular if all $p$-faces have the same number of vertices.
+One of the most interesting way of considering simplex meshes is through duality of triangulations. The structure of a $k$-simplex mesh is indeed closely related to the structure of a $k$-triangulation. A $k$-triangulation of $\mathbb{R}^d$ is composed of $p$-simplices ( $1 \leq p \leq k$ ) which are the $p$-faces of the triangulation. We define a $p$-face of a $k$-simplex mesh as being the dual of a ($k-p$) simplices of a $k$-triangulation. For instance, a 1-face of a 2-simplex mesh is an edge and a 2-face of a 2-simplex mesh is polygon. In general, a $p$-face of a $k$-simplex mesh is a ($p-1$)-simplex mesh and is, therefore, made of $q$-faces ($q < p$). A Simplex mesh is said to be regular if all $p$-faces have the same number of vertices.
 
-Simplex meshes are dual of triangulations. Thus, their connectivity functions N(M) are mapped by an homemorphism. Simplex meshes are topologically equivalent to triangulations but not geometrically equivalent. We can define a topological transformation that associates a $k$-simplex mesh to a $k$-triangulation. This transformation is pictured in figure~\ref{fig:simplexMeshes} and considers differently the vertices and edges located at the boundary of the triangulation from those located inside. 
+Simplex meshes are dual of triangulations. Thus, their connectivity functions N(M) are mapped by an homeomorphism. Simplex meshes are topologically equivalent to triangulations but not geometrically equivalent. We can define a topological transformation that associates a $k$-simplex mesh to a $k$-triangulation. This transformation is pictured in figure~\ref{fig:simplexMeshes} and considers differently the vertices and edges located at the boundary of the triangulation from those located inside. 
 \begin{figure}
 	\centering
 	\includegraphics[width=150mm, height=50mm]{SimplexMesh_Examples}
@@ -256,7 +266,8 @@ In order to keep the primal-dual references in a single data structure, we have 
 
 %--- Todo -- illustrate both old and new code for origin ref type
 \begin{verbatim}
-typedef GeometricalQuadEdge< std::pair<PointIdentifier, CellIdentifier>,
+typedef GeometricalQuadEdge<
+                             std::pair<PointIdentifier, CellIdentifier>,
                              std::pair<CellIdentifier,  PointIdentifier>,
                              PrimalDataType, 
                              DualDataType
@@ -285,10 +296,10 @@ A summaries of changes in new data structure can be depicted in Table~\ref{table
 \subsection{Primal to primal/dual filter }
 In order to transform primal mesh into dual mesh, we also create a new filter called \emph{itk::QuadEdgeMeshToQuadEdgeMeshWithDualFilter}. This filter is templated with \emph{QuadEdgeMeshWithDual} data structure. This filter generate dual mesh from primal mesh in three phases; first phase is computing dual point from primal cells, second phase is computing dual cells from primal points, and in last phase, primal borders edges are used to generate dual border cell.
 
-We also implement a new adaptor for showing dual mesh.
+We also implement a new adaptor for connecting the dual mesh natively to a downward pipeline.
 %-----------------------------------------------------------------------
 \subsubsection{Dual point functor}
-As explained before, there is no geometrical duality between the primal and the dual. Therefore any formula that compute points that satisfy the criteria of duality detailed in section 2.1 can be use. In order not to have a single option that may limits the application of the filter, a functor is used to compute the dual point. Depending on the case faced, the user is able to choose from the already two existing dual point functor, or use his own functor. Except from the classic ITK macro, \emph{typedef} definition and constructor/destructor, the functor has only one method where the process is done.
+As explained before, there is no geometrical duality between the primal and the dual. Therefore any formula that compute points that satisfy the criteria of duality detailed in section 2.1 can be use. Not to restrict ourselves to a single option that may limit the application of the filter, a functor is used to compute the dual point. Depending on the case faced, the user is able to choose from the already two existing dual point functor, or use his own functor. Except from the classic ITK macro, \emph{typedef} definition and constructor/destructor, the functor has only one method where the process is done.
 \begin{verbatim}
 template< class TInputMesh, class TOutputMesh=TInputMesh>
 class DualPointFunctor
@@ -302,7 +313,7 @@ operator() ( const TInputMesh* primalMesh, CellIterator cellIterator )
 };
 \end{verbatim}
 \paragraph{\textbf{Barycentre}}
-In general cases, the barycentre of each face of the mesh is used for the dual point. It has the advantage to be costless to calculate, to always be located inside its corresponding face and to work with any type of mesh. The following equation is used to compute the centre
+By default, the barycentre of each face is used to compute the location of the dual point. It has the advantage to be relatively straightforward to compute, to compute a dual point which is always located within the face and to work with any kind of face. The following equation is used to compute the centre
 \begin{equation}
 \label{eq5}
 M~=~\frac{P_1~+~P_2~+~\mathnormal{...}~+~P_n}{n}
@@ -310,7 +321,7 @@ M~=~\frac{P_1~+~P_2~+~\mathnormal{...}~+~P_n}{n}
 where $P_1,~P_2, ...,~P_n$ are the points retrieve from the current cell.
 
 \paragraph{\textbf{Circumcentre}}
-The circumcentre is a particular dual point of triangle mesh. It is the centre of the circumference circle of a triangle and is determine by the crossing point of the perpendicular bisectors, is not always include in its primal cell face, and more costly to compute. The interest of this dual point is in the case of the Delaunay triangulation in order to obtain its dual, the corresponding Voronoi tesselation. The following equation is used to compute the centre
+The circumcentre is a particular dual point of triangle mesh. It is the centre of the circumference circle of a triangle and is determine by the crossing point of the perpendicular bisectors. As such, it is not always within the face, and more costly to compute. The interest of this is in the case of the Delaunay triangulation in order to obtain its dual, the corresponding Voronoi tesselation. The following equation is used to compute the centre
 \begin{equation}
 \label{eq6}
 M~=~P_1~+~\frac{|P_3-P_1|^2~[(P_2-P_1)\times(P_3-P_1)]\times(P_2-P_1)~+~|P_2-P_1|^2~[(P_3-P_1)\times(P_2-P_1)]\times(P_3-P_1)}{2~|(P_2-P_1)\times(P_3-P_1)|^2}
@@ -318,7 +329,7 @@ M~=~P_1~+~\frac{|P_3-P_1|^2~[(P_2-P_1)\times(P_3-P_1)]\times(P_2-P_1)~+~|P_2-P_1
 where $P_1,~P_2,~P_3$ are the points retrieved from the current triangle, and $\times$ the cross product. In order to simplify the calculus and avoid the use of square roots the edge length are squared and the coordinates of all the point relative to the first point $P_1$ are used. Due to the floating-point errors such solution may be unstable in the case of the denominator is close to $0$. To prevent such case, the exact geometric predicate implemented for ITK \cite{Moreau2011} is use for the cross product calculation.
 %-----------------------------------------------------------------------
 \subsubsection{Dual borders calculation}
-As shown in figure \ref{fig:dualMeshes}, the dual of a primal mesh that contain a border is not a closed mesh. The dual edge point obtain from the primal border are not included into any faces of the dual. This representation may be problematic to some other process which may not take into account the \emph{EdgeContainer} that store the edges in the \emph{QuadEdgeMesh} structure, and therefore discard edges that are not part of any face (\emph{e.i.} Mesh writting filter). If the dual edge point are not compute, the effect still occur but is less important that in the previous case. Another option is to create a border by connecting the dual edge point, however this solution may lead to some visual errors, such as overlapping faces in the dual, in particular configuration. The \emph{SetBorders()} methods allow the user to decide how the filter should manage the borders (Fig. \ref{fig:BorderManagment}). By default the filter will compute the dual edge point and create a border to the dual mesh.
+As shown in figure \ref{fig:dualMeshes}, the dual of a primal mesh that contain a border is not a closed mesh. The dual edge point obtain from the primal border are not included into any faces of the dual. This representation may be problematic to some other process which may not take into account the \emph{EdgeContainer} that store the edges in the \emph{QuadEdgeMesh} structure, and therefore discard edges that are not part of any face (\emph{e.i.} Mesh writting filter). If the dual edge point are not compute, the effect still occur but is less important that in the previous case. Another option is to create a border by connecting the dual edge point, however this solution may lead to some flipped triangles in specific configuration. The \emph{SetBorders()} methods allow the user to decide how the filter should manage the borders (Fig. \ref{fig:BorderManagment}). By default the filter will compute the dual edge point and create a border to the dual mesh.
 \begin{figure}
 	\centering
 	\subfigure[Dual without dual edge point] {

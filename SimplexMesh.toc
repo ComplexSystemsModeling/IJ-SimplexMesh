@@ -1,0 +1,21 @@
+\contentsline {section}{\numberline {1}Surfaces}{2}{section.1}
+\contentsline {subsection}{\numberline {1.1}Orientable 2-Manifold Mesh: A discrete real-world object}{2}{subsection.1.1}
+\contentsline {subsection}{\numberline {1.2}Special Case A: Triangular Meshes}{3}{subsection.1.2}
+\contentsline {subsection}{\numberline {1.3}Special Case B: Simplex Meshes}{3}{subsection.1.3}
+\contentsline {section}{\numberline {2}Duality}{4}{section.2}
+\contentsline {subsection}{\numberline {2.1}Notion of Duality}{4}{subsection.2.1}
+\contentsline {subsection}{\numberline {2.2}Triangulation - Simplex Duality}{5}{subsection.2.2}
+\contentsline {subsection}{\numberline {2.3}Delaunay - Voronoi Duality}{6}{subsection.2.3}
+\contentsline {section}{\numberline {3}Implement Duality in ITK}{6}{section.3}
+\contentsline {subsection}{\numberline {3.1}Existing Data Structure for Meshes in ITK}{6}{subsection.3.1}
+\contentsline {subsection}{\numberline {3.2}Extension in data structure, {\em QuadEdgeMeshWithDual} data structure}{7}{subsection.3.2}
+\contentsline {subsection}{\numberline {3.3}Primal to primal/dual filter }{8}{subsection.3.3}
+\contentsline {subsubsection}{Dual point functor}{9}{section*.2}
+\contentsline {paragraph}{\textbf {Barycentre}}{9}{section*.3}
+\contentsline {paragraph}{\textbf {Circumcentre}}{9}{section*.4}
+\contentsline {subsubsection}{Dual borders calculation}{10}{section*.5}
+\contentsline {section}{\numberline {4}Validation}{10}{section.4}
+\contentsline {subsection}{\numberline {4.1}Test on planer triangular to simplex mesh with and without holes}{10}{subsection.4.1}
+\contentsline {subsection}{\numberline {4.2}Test with Delaunay to Voronoi}{12}{subsection.4.2}
+\contentsline {subsection}{\numberline {4.3}Test on non planar mesh}{12}{subsection.4.3}
+\contentsline {section}{\numberline {5}Usage}{13}{section.5}
