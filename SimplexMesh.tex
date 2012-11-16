@@ -30,11 +30,11 @@ colorlinks,linkcolor={blue},citecolor={blue},urlcolor={blue},
 % submission process. Please replace the number "1338" with
 % the actual handle number that you get assigned.
 %
-\newcommand{\IJhandlerIDnumber}{1338} %TOMODIFY
+\newcommand{\IJhandlerIDnumber}{3392} 
 
 % Increment the release number whenever significant changes are made.
 % The author and/or editor can define 'significant' however they like.
-\release{0.01}
+\release{1.0}
 
 % At minimum, give your name and an email address.  You can include a
 % snail-mail address if you like.
@@ -77,7 +77,7 @@ $^{2}$Singapore Immunology Network, Agency for Science, Technology and Research 
 % scope of the document.
 \begin{abstract}
 \noindent
-This document describes an extension of ITK to handle both primal and dual meshes simultaneously. This paper describe in particular the data structure, an extension of \emph{itk::QuadEdgeMesh}, a filter to compute and add to the the structure the dual of an existing mesh, and an adaptor which let a downward pipeline process the dual mesh as if it was a native itk::QuadEdgeMesh. The new data structure, \emph{itk::QuadEdgeMeshWithDual}, is an extension of the already existing \emph{itk::QuadEdgeMesh}~\cite{Gouaillard2006}, which already included by default the due topology, to handle dual geometry as well. Two types of primal meshes have been specifically illustrated: triangular / simplex meshes and voronoi / delaunay. A functor mechanism has been implemented to allow for different kind of computation of the dual geometry. This paper is accompanied with the source code and examples.
+This document describes an extension of ITK to handle both primal and dual meshes simultaneously. This paper describe in particular the data structure, an extension of \emph{itk::QuadEdgeMesh}, a filter to compute and add to the the structure the dual of an existing mesh, and an adaptor which let a downward pipeline process the dual mesh as if it was a native itk::QuadEdgeMesh. The new data structure, \emph{itk::QuadEdgeMeshWithDual}, is an extension of the already existing \emph{itk::QuadEdgeMesh}~\cite{Gouaillard2006}, which already included by default the due topology, to handle dual geometry as well. Two types of primal meshes have been specifically illustrated: triangular / simplex meshes and Voronoi / Delaunay. A functor mechanism has been implemented to allow for different kind of computation of the dual geometry. This paper is accompanied with the source code and examples.
 \end{abstract}
 \IJhandlenote{\IJhandlerIDnumber}
 \tableofcontents
